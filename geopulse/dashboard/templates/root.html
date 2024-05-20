@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+
+        .inputsection {
+            width: 40%;
+            padding: 1rem;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow-y: scroll;
+        }
+
+        .mapview {
+            width: 60%;
+            height: 100%;
+            background-color: red;
+        }
+
+        .dashboard {
+            display: flex;
+        }
+
+        .field_title {
+            padding: 0.5rem;
+            border: 1px solid black;
+        }
+
+        .field_options {
+            padding: 0.5rem;
+        }
+
+        .load_more {
+            padding: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            display: none;
+        }
+
+       
+    </style>
+    <title>GeoPulse</title>
+</head>
+
+<body>
+    <div class="dashboard">
+        <div class="inputsection">
+            <div>
+                <div class="field_title">
+                    District Name
+                </div>
+                <div class="options_load_more" id="district_city_options">
+                    <div class="field_options" id="city_options" onload="load_more_city_handler()"></div>
+                    <div class="load_more" id="load_more_city" onclick="load_more_city_handler()">load more +</div>
+                </div>
+            </div>
+            <div>
+                <div class="field_title">
+                    Taluka Name
+                </div>
+                <div class="options_load_more" id="district_city_options">
+                    <div class="field_options" id="taluka_options" onload="load_more_taluka_handler()"></div>
+                    <div class="load_more" id="load_more_taluka" onclick="load_more_taluka_handler()">load more +</div>
+                </div>
+            </div>
+            <div>
+                <div class="field_title">
+                    Village Name
+                </div>
+                <div class="options_load_more">
+                    <div class="field_options" id="village_options" onload="load_more_village_handler()"></div>
+                    <div class="load_more" id="load_more_village" onclick="load_more_village_handler()">load more +
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mapview">
+            <div id="map"></div>
+        </div>
+    </div>
+    <script>
+        const getValues = (NodeList) => {
+            values = []
+            for (let i in NodeList) {
+                if (NodeList[i].value)
+                    values.push(NodeList[i].value)
+            }
+            return values
+        }
+        var village_page_no = 1;
+        const load_more_village_handler = () => {
+            let city = getValues(document.querySelectorAll('input[name="city"]:checked'))
+            let taluka = getValues(document.querySelectorAll('input[name="taluka"]:checked'))
+            const parent_element = document.getElementById("village_options")
+            fetch(`${window.location.href}${city.join()}/${taluka.join()}/${village_page_no}`)
+                .then((response) => {
+                    if (response.ok) {
+                        return response.json()
+                    }
+                })
+                .then((jsonData) => {
+                    for (let i = 0; i < jsonData.villages.length; i++) {
+                        const newDiv = document.createElement('div');
+                        const newInput = document.createElement('input');
+                        newInput.type = 'checkbox';
+                        newInput.name = 'village';
+                        newInput.value = jsonData.villages[i].CCODE;
+                        newInput.onchange = village_on_change
+                        const newLabel = document.createElement('label');
+                        newLabel.setAttribute('for', 'village');
+                        newLabel.textContent = jsonData.villages[i].village;
+                        newDiv.appendChild(newInput);
+                        newDiv.appendChild(newLabel);
+                        parent_element.appendChild(newDiv);
+                    }
+                    if (jsonData.has_next) {
+                        village_page_no++;
+                        document.getElementById("load_more_village").style.display = "block"
+                    }
+                    else {
+                        document.getElementById("load_more_village").style.display = "none"
+                    }
+                })
+        }
+
+        var taluka_page_no = 1;
+        const load_more_taluka_handler = () => {
+            let city = getValues(document.querySelectorAll('input[name="city"]:checked'))
+            const parent_element = document.getElementById("taluka_options")
+            fetch(`${window.location.href}${city.join()}/${taluka_page_no}`)
+                .then((response) => {
+                    if (response.ok) {
+                        return response.json()
+                    }
+                })
+                .then((jsonData) => {
+                    for (let i = 0; i < jsonData.talukas.length; i++) {
+                        const newDiv = document.createElement('div');
+                        const newInput = document.createElement('input');
+                        newInput.type = 'checkbox';
+                        newInput.name = 'taluka';
+                        newInput.onchange = taluka_on_change
+                        newInput.value = jsonData.talukas[i];
+                        const newLabel = document.createElement('label');
+                        newLabel.setAttribute('for', 'taluka');
+                        newLabel.textContent = jsonData.talukas[i];
+                        newDiv.appendChild(newInput);
+                        newDiv.appendChild(newLabel);
+                        parent_element.appendChild(newDiv);
+                    }
+                    if (jsonData.has_next) {
+                        taluka_page_no++;
+                        document.getElementById("load_more_taluka").style.display = "block"
+                    }
+                    else {
+                        document.getElementById("load_more_taluka").style.display = "none"
+                    }
+                }).catch((err) => {
+                    console.error(err)
+                })
+        }
+
+        var city_page_no = 1;
+        const load_more_city_handler = () => {
+            const parent_element = document.getElementById("city_options")
+            fetch(`${window.location.href}${city_page_no}`)
+                .then((response) => {
+                    if (response.ok) {
+                        return response.json()
+                    }
+                })
+                .then((jsonData) => {
+                    for (let i = 0; i < jsonData.cities.length; i++) {
+                        const newDiv = document.createElement('div');
+                        const newInput = document.createElement('input');
+                        newInput.type = 'checkbox';
+                        newInput.name = 'city';
+                        newInput.onchange = city_on_change
+                        newInput.value = jsonData.cities[i];
+                        const newLabel = document.createElement('label');
+                        newLabel.setAttribute('for', 'city');
+                        newLabel.textContent = jsonData.cities[i];
+                        newDiv.appendChild(newInput);
+                        newDiv.appendChild(newLabel);
+                        parent_element.appendChild(newDiv);
+                    }
+                    if (jsonData.has_next) {
+                        city_page_no++;
+                        document.getElementById("load_more_city").style.display = "block"
+                    }
+                    else {
+                        document.getElementById("load_more_city").style.display = "none"
+                    }
+                }).catch((err) => {
+                    console.error(err)
+                })
+        }
+
+        window.onload = () => {
+            load_more_city_handler()
+        }
+
+        let timeoutID
+        const city_on_change = () => {
+            clearTimeout(timeoutID);
+            timeoutID = setTimeout(() => {
+                taluka_page_no = 1
+                document.getElementById("taluka_options").innerHTML = ""
+                load_more_taluka_handler()
+
+                village_page_no = 1
+                document.getElementById("village_options").innerHTML = ""
+            }, 5)
+        }
+
+        const taluka_on_change = () => {
+            clearTimeout(timeoutID);
+            timeoutID = setTimeout(() => {
+                village_page_no = 1
+                document.getElementById("village_options").innerHTML = ""
+                load_more_village_handler()
+            }, 5)
+        }
+
+        const village_on_change = () => {
+            addRemoveMarkPlace()
+        }
+        
+        const addRemoveMarkPlace = async () => {
+            let selectedVillages = getValues(document.querySelectorAll('input[name="village"]:checked'))
+            selectedVillages.map((ccode)=>{
+                fetch(`${window.location.href}get_cords/${ccode}`).then((reponse)=>{
+                    return reponse.json()
+                }).then((jsonData)=>{
+                    console.log(jsonData)
+                    var polygon = L.polygon(jsonData.geometry.coordinates, {color: 'red'}).addTo(map);
+                    map.fitBounds(polygon.getBounds());
+                })
+            })
+        }
+        var map
+        const main = async () => {
+            try {
+                const titleLink = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+                const attribution =
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+                const cityMagnification = 1;
+                map = L.map("map",
+                    {
+                        center: [18.6833, 74.0300],
+                        zoom: 9
+                    }
+                );
+                L.tileLayer(titleLink, {
+                    attribution: attribution,
+                }).addTo(map);
+
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        };
+        main();
+    </script>
+</body>
