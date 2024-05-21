@@ -3,6 +3,7 @@ from django.shortcuts import render
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 import json
+import numpy as np
 
 # Create your views here.
 def root(request):
@@ -56,11 +57,10 @@ def get_cordinates(request, ccode):
     data = json.load(file)
     for i in data['features']:
         if i['properties']['CCODE'] == ccode:
-            cordinates = i['geometry']['coordinates']
-            for i in range(len(cordinates)):
-                
+            coordinatesLongLat = i['geometry']['coordinates']
+            coordinatesLatLong = np.array(coordinatesLongLat)[..., ::-1].tolist()
             return JsonResponse({
-                "properties": i['geometry']['coordinates']
+                "coordinates": coordinatesLatLong
             })
     return JsonResponse({
         "status_code":500
